@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Perpusri — Jurnal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="auth.js"></script>
+    <style>
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 30px;
+            padding: 20px 50px;
+        }
+        @media (max-width: 800px) {
+            .layout-grid { grid-template-columns: 1fr; }
+        }
+        .filter-sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            height: fit-content;
+        }
+        .filter-sidebar h3 { margin-bottom: 15px; border-bottom: 2px solid var(--color-secondary); padding-bottom: 10px; }
+        .filter-group { margin-bottom: 15px; }
+        .filter-group label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9em; }
+        .filter-group input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .jurnal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        try {
+            const _sess = (typeof getSession === 'function') ? getSession() : JSON.parse(localStorage.getItem('perpusri_session') || 'null');
+            if (!(_sess && _sess.email)) { window.location.replace('login.html'); }
+        } catch(e) { window.location.replace('login.html'); }
+    </script>
+    
+    <div class="user-view">
+        <header class="navbar">
+            <div class="logo">Perpusri</div>
+            <nav>
+                <a href="index.html">Home</a>
+                <a href="buku.html">Buku</a>
+                <a href="jurnal.html" class="active">Jurnal</a>
+                <a href="skripsi.html">Skripsi</a>
+                <a href="tesis.html">Tesis</a>
+                <a href="disertasi.html">Disertasi</a>
+                <a href="forum.html">Forum</a>
+                <a href="profil.html">Profil</a>
+            </nav>
+            <div class="profile-icon" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#eee;border-radius:50%;">
+                <i class="fas fa-user"></i>
+            </div>
+        </header>
+
+        <main>
+            <div class="welcome-banner" style="margin: 20px 50px; padding: 30px;">
+                <h1 style="font-size: 2em;">Koleksi Jurnal</h1>
+                <p>Telusuri jurnal ilmiah terbaru dari civitas akademika.</p>
+            </div>
+
+            <div class="layout-grid">
+                <aside class="filter-sidebar">
+                    <h3><i class="fas fa-filter"></i> Filter</h3>
+                    
+                    <div class="filter-group">
+                        <label>Cari Judul</label>
+                        <input type="text" id="filterTitle" placeholder="Kata kunci...">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Penulis (User)</label>
+                        <input type="text" id="filterAuthor" placeholder="Email/Nama...">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Tahun Terbit</label>
+                        <input type="number" id="filterYear" placeholder="Contoh: 2024">
+                    </div>
+
+                    <button class="read-button" id="applyFilterBtn" style="width:100%">Terapkan Filter</button>
+                    <button id="resetFilterBtn" style="width:100%; margin-top:10px; background:transparent; border:1px solid #ccc; padding:8px; border-radius:4px; cursor:pointer;">Reset</button>
+                </aside>
+
+                <section>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h2 id="resultHeader">Menampilkan Semua Jurnal</h2>
+                    </div>
+                    
+                    <div id="jurnalListContainer" class="jurnal-grid">
+                        </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const KEY_COLL = 'perpusri_collections';
+
+        function loadData() {
+            return JSON.parse(localStorage.getItem(KEY_COLL) || '[]');
+        }
+
+        function renderJurnal() {
+            const titleFilter = document.getElementById('filterTitle').value.toLowerCase();
+            const authorFilter = document.getElementById('filterAuthor').value.toLowerCase();
+            const yearFilter = document.getElementById('filterYear').value;
+
+            // Ambil data, hanya yang tipenya 'jurnal'
+            let data = loadData().filter(item => (item.type || '').toLowerCase() === 'jurnal');
+
+            // Terapkan filter input user
+            data = data.filter(item => {
+                const matchTitle = !titleFilter || (item.title || '').toLowerCase().includes(titleFilter);
+                const matchAuthor = !authorFilter || (item.authorEmail || '').toLowerCase().includes(authorFilter);
+                const matchYear = !yearFilter || String(item.year) === String(yearFilter);
+                return matchTitle && matchAuthor && matchYear;
+            });
+
+            const container = document.getElementById('jurnalListContainer');
+            const header = document.getElementById('resultHeader');
+            
+            container.innerHTML = '';
+            header.textContent = `Menampilkan ${data.length} Jurnal`;
+
+            if (data.length === 0) {
+                container.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 40px; background: white; border-radius: 8px;">
+                    <i class="fas fa-search" style="font-size: 3em; color: #eee; margin-bottom: 10px;"></i>
+                    <p>Tidak ada jurnal yang ditemukan dengan kriteria tersebut.</p>
+                    <p style="font-size:0.9em; color:#666;">Coba upload jurnal baru di halaman Home.</p>
+                </div>`;
+                return;
+            }
+
+            data.forEach(doc => {
+                const el = document.createElement('div');
+                el.className = 'document-card';
+                el.innerHTML = `
+                    <div class="card-image-placeholder" style="height:120px; font-size:2em;"><i class="fas fa-book-open"></i></div>
+                    <div class="card-content">
+                        <span class="doc-type" style="background-color:#e3f2fd; color:#1565c0;">Jurnal</span>
+                        <h3 style="font-size:1rem; margin:8px 0; line-height:1.4;">${doc.title}</h3>
+                        <div style="font-size:0.85em; color:#666; margin-bottom:10px;">
+                            <div><i class="fas fa-user-edit"></i> ${doc.authorEmail.split('@')[0]}</div>
+                            <div><i class="fas fa-calendar-alt"></i> ${doc.year || 'N/A'}</div>
+                        </div>
+                        ${doc.fileBase64 
+                            ? `<a href="data:${doc.fileMime};base64,${doc.fileBase64}" download="${doc.fileName}" class="read-button" style="display:block; text-align:center; text-decoration:none;">Unduh PDF</a>` 
+                            : `<button class="read-button" disabled style="opacity:0.6; background:#ccc;">File N/A</button>`
+                        }
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Render awal
+            renderJurnal();
+
+            // Event Listener Filter
+            document.getElementById('applyFilterBtn').addEventListener('click', renderJurnal);
+            
+            // Enter key pada input
+            ['filterTitle', 'filterAuthor', 'filterYear'].forEach(id => {
+                document.getElementById(id).addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') renderJurnal();
+                });
+            });
+
+            document.getElementById('resetFilterBtn').addEventListener('click', () => {
+                document.getElementById('filterTitle').value = '';
+                document.getElementById('filterAuthor').value = '';
+                document.getElementById('filterYear').value = '';
+                renderJurnal();
+            });
+        });
+    </script>
+</body>
+</html>

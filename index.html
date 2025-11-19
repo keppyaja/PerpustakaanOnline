@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perpusri — Beranda</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="auth.js"></script>
+    <script>
+        if (!isAuthenticated()) {
+            window.location.replace('login.html');
+        }
+    </script>
+    <style>
+        /* Tambahan style khusus untuk Advanced Search di Index */
+        .advanced-search-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            max-width: 900px;
+            margin: 0 auto 30px;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+        @media (max-width: 768px) {
+            .advanced-search-box { grid-template-columns: 1fr; }
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.85em;
+            color: var(--color-text-light);
+            margin-bottom: 4px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        /* Container hasil pencarian */
+        #searchResultContainer {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="user-view">
+        <header class="navbar">
+            <div class="logo">Perpusri</div>
+            <nav>
+                <a href="index.html" class="active">Home</a>
+                <a href="buku.html">Buku</a>
+                <a href="jurnal.html">Jurnal</a>
+                <a href="skripsi.html">Skripsi</a>
+                <a href="tesis.html">Tesis</a>
+                <a href="disertasi.html">Disertasi</a>
+                <a href="forum.html">Forum</a>
+                <a href="profil.html">Profil</a>
+            </nav>
+            <div class="profile-icon" id="profileIcon" style="width:36px;height:36px;">
+                <img id="profileAvatar" src="" alt="avatar" style="width:36px;height:36px;border-radius:50%;object-fit:cover;display:none;">
+                <div id="profileInitial" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ddd;font-weight:700;color:#333;">D</div>
+            </div>
+        </header>
+
+        <main>
+            <section class="search-section">
+                <h2 style="text-align:center; margin-bottom:20px; color:var(--color-primary);">Cari Referensi</h2>
+                
+                <div class="advanced-search-box">
+                    <div class="form-group">
+                        <label>Kata Kunci / Judul</label>
+                        <input type="text" id="searchKeyword" placeholder="Contoh: Data Mining...">
+                    </div>
+                    <div class="form-group">
+                        <label>Penulis (User Email)</label>
+                        <input type="text" id="searchAuthor" placeholder="Email penulis...">
+                    </div>
+                    <div class="form-group">
+                        <label>Kategori</label>
+                        <select id="searchCategory">
+                            <option value="">Semua</option>
+                            <option value="jurnal">Jurnal</option>
+                            <option value="buku">Buku</option>
+                            <option value="skripsi">Skripsi</option>
+                            <option value="tesis">Tesis</option>
+                            <option value="disertasi">Disertasi</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tahun</label>
+                        <input type="number" id="searchYear" placeholder="Thn">
+                    </div>
+                    <div class="form-group">
+                        <button class="search-button" id="btnDoSearch" style="border-radius:6px; width:100%;">
+                            <i class="fas fa-search"></i> Cari
+                        </button>
+                    </div>
+                </div>
+
+                <div id="searchResultSection" style="display:none; padding: 0 20px;">
+                    <h3>Hasil Pencarian <span id="resultCountBadge" class="doc-type" style="background:var(--color-primary); color:white;">0</span></h3>
+                    <div id="searchResultContainer"></div>
+                    <hr style="margin: 40px 0; border:0; border-top:1px solid #eee;">
+                </div>
+
+                <div class="filter-bar">
+                    <a class="category-pill" href="buku.html"><i class="fas fa-book"></i> Buku</a>
+                    <a class="category-pill" href="jurnal.html">Jurnal</a>
+                    <a class="category-pill" href="skripsi.html">Skripsi</a>
+                    <a class="category-pill" href="tesis.html">Tesis</a>
+                    <a class="category-pill" href="disertasi.html">Disertasi</a>
+                </div>
+            </section>
+
+            <section class="welcome-banner">
+                <h1>Selamat datang di<br>Perpustakaan Riset Online</h1>
+                <p>Akses ribuan jurnal, buku, dan penelitian terkini. Temukan pengetahuan yang Anda butuhkan untuk penelitian dan pembelajaran.</p>
+            </section>
+
+            <section class="features-section">
+                <h2 style="text-align: center; margin-bottom: 10px;">Fitur Sistem</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <i class="fas fa-search"></i>
+                        <h3>Pencarian Cepat</h3>
+                        <p>Cari berdasarkan Judul, Penulis, Kategori, dan Tahun.</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-sliders-h"></i>
+                        <h3>Eksplorasi Mudah</h3>
+                        <p>Filter kategori lengkap untuk memudahkan riset.</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <h3>Unggah Karya</h3>
+                        <p>Bagikan hasil penelitian Anda ke repositori.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section-content">
+                <h2>Kategori Populer</h2>
+                <div class="category-grid">
+                    <a class="category-item blue" href="buku.html">
+                        <i class="fas fa-book fa-2x"></i>
+                        <h4>Buku</h4>
+                        <p><span id="count_buku">0</span> dokumen</p>
+                    </a>
+                    <a class="category-item green" href="jurnal.html">
+                        <i class="fas fa-file-alt fa-2x"></i>
+                        <h4>Jurnal</h4>
+                        <p><span id="count_jurnal">0</span> dokumen</p>
+                    </a>
+                    <a class="category-item purple" href="skripsi.html">
+                        <i class="fas fa-graduation-cap fa-2x"></i>
+                        <h4>Skripsi</h4>
+                        <p><span id="count_skripsi">0</span> dokumen</p>
+                    </a>
+                    <a class="category-item orange" href="tesis.html">
+                        <i class="fas fa-scroll fa-2x"></i>
+                        <h4>Tesis</h4>
+                        <p><span id="count_tesis">0</span> dokumen</p>
+                    </a>
+                    <a class="category-item red" href="disertasi.html">
+                        <i class="fas fa-file-invoice fa-2x"></i>
+                        <h4>Disertasi</h4>
+                        <p><span id="count_disertasi">0</span> dokumen</p>
+                    </a>
+                </div>
+            </section>
+
+            <section class="section-content">
+                <h2>Unggah Dokumen</h2>
+                <div class="card" style="margin-top:12px;">
+                    <div style="margin-bottom:10px;">
+                        <strong>Total Dokumen Sistem:</strong> <span id="countTotalSystem">0</span>
+                    </div>
+                    <label>Judul</label>
+                    <input id="uploadTitle" placeholder="Judul dokumen" style="width:100%; padding:10px; margin:8px 0; border:1px solid #ccc; border-radius:4px;">
+
+                    <label>Kategori</label>
+                    <select id="uploadCategory" style="width:100%; padding:10px; margin:8px 0; border:1px solid #ccc; border-radius:4px;">
+                        <option value="jurnal">Jurnal</option>
+                        <option value="buku">Buku</option>
+                        <option value="artikel">Artikel</option>
+                        <option value="skripsi">Skripsi</option>
+                        <option value="tesis">Tesis</option>
+                        <option value="disertasi">Disertasi</option>
+                    </select>
+
+                    <label>Tahun Terbit</label>
+                    <input type="number" id="uploadYear" placeholder="2024" value="2024" style="width:100%; padding:10px; margin:8px 0; border:1px solid #ccc; border-radius:4px;">
+
+                    <label>File</label>
+                    <input id="uploadFile" type="file" accept=".pdf,.doc,.docx,.txt" style="width:100%; margin:8px 0;">
+
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:10px;">
+                        <button id="uploadBtn" class="read-button">Unggah</button>
+                        <button id="clearUploadBtn" style="background:#eee; border:none; padding:10px; border-radius:4px; cursor:pointer;">Bersihkan</button>
+                        <div id="uploadStatus" style="margin-left:10px;"></div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top:12px;">
+                    <h3>Unggahan Saya</h3>
+                    <div id="myUploadsList"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // --- LOGIKA PENYIMPANAN & PENCARIAN ---
+        const KEY_COLL = 'perpusri_collections';
+        const MAX_FILE_BYTES = 5 * 1024 * 1024; // Limit 5MB untuk demo
+        
+        function loadCollections(){ return JSON.parse(localStorage.getItem(KEY_COLL) || '[]'); }
+        function saveCollections(arr){ localStorage.setItem(KEY_COLL, JSON.stringify(arr)); }
+
+        // Fungsi Pencarian Utama
+        function performSearch() {
+            const keyword = document.getElementById('searchKeyword').value.toLowerCase();
+            const author = document.getElementById('searchAuthor').value.toLowerCase();
+            const category = document.getElementById('searchCategory').value.toLowerCase();
+            const year = document.getElementById('searchYear').value;
+
+            const allData = loadCollections();
+            
+            // Filter data
+            const results = allData.filter(item => {
+                const matchKey = !keyword || (item.title||'').toLowerCase().includes(keyword);
+                const matchAuth = !author || (item.authorEmail||'').toLowerCase().includes(author);
+                const matchCat = !category || (item.type||'').toLowerCase() === category;
+                const matchYear = !year || String(item.year||'') === String(year);
+                
+                return matchKey && matchAuth && matchCat && matchYear;
+            });
+
+            // Render Hasil
+            const container = document.getElementById('searchResultContainer');
+            const section = document.getElementById('searchResultSection');
+            const badge = document.getElementById('resultCountBadge');
+            
+            section.style.display = 'block';
+            badge.textContent = results.length;
+            container.innerHTML = '';
+
+            if (results.length === 0) {
+                container.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:gray;">Tidak ditemukan dokumen dengan kriteria tersebut.</p>';
+                return;
+            }
+
+            results.forEach(doc => {
+                const el = document.createElement('div');
+                el.className = 'document-card reveal';
+                el.innerHTML = `
+                    <div class="card-image-placeholder"><i class="fas fa-file-alt"></i></div>
+                    <div class="card-content">
+                        <span class="doc-type">${doc.type}</span>
+                        <h3 style="font-size:1.1em; margin:5px 0;">${doc.title}</h3>
+                        <p style="font-size:0.9em; color:#666;">
+                            <i class="fas fa-user"></i> ${doc.authorEmail.split('@')[0]}<br>
+                            <i class="fas fa-calendar"></i> ${doc.year || '-'}
+                        </p>
+                        ${doc.fileBase64 
+                            ? `<a href="data:${doc.fileMime};base64,${doc.fileBase64}" download="${doc.fileName}" class="read-button" style="display:block; text-align:center; text-decoration:none; margin-top:10px;">Unduh</a>` 
+                            : `<button class="read-button" disabled style="opacity:0.5; margin-top:10px;">File Tidak Ada</button>`
+                        }
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        // Update statistik realtime
+        function updateCategoryCounts(){
+            const arr = loadCollections();
+            const counts = arr.reduce((acc, it) => {
+                const t = (String(it.type||'')).toLowerCase();
+                acc.total = (acc.total||0) + 1;
+                acc[t] = (acc[t]||0) + 1;
+                return acc;
+            }, {});
+
+            const map = {
+                'buku': 'count_buku',
+                'jurnal': 'count_jurnal',
+                'skripsi': 'count_skripsi',
+                'tesis': 'count_tesis',
+                'disertasi': 'count_disertasi'
+            };
+            Object.keys(map).forEach(k => {
+                const el = document.getElementById(map[k]);
+                if (el) el.textContent = counts[k] || 0;
+            });
+            
+            const totalEl = document.getElementById('countTotalSystem');
+            if(totalEl) totalEl.textContent = arr.length;
+        }
+
+        // Fungsi Upload (Updated dengan field Tahun)
+        async function handleUpload(){
+            const session = (typeof getSession === 'function') ? getSession() : null;
+            if (!session) { alert('Silakan login terlebih dahulu.'); window.location.href='login.html'; return; }
+
+            const title = document.getElementById('uploadTitle').value.trim();
+            const category = document.getElementById('uploadCategory').value;
+            const year = document.getElementById('uploadYear').value.trim();
+            const fileInput = document.getElementById('uploadFile');
+            const file = fileInput.files && fileInput.files[0];
+            const status = document.getElementById('uploadStatus');
+
+            status.textContent = '';
+            if (!title) { status.style.color='red'; status.textContent = 'Judul wajib diisi.'; return; }
+            if (!file) { status.style.color='red'; status.textContent = 'Pilih file.'; return; }
+
+            const meta = {
+                id: Date.now(),
+                title,
+                type: category,
+                authorEmail: session.email,
+                year: year || new Date().getFullYear(),
+                fileName: file.name,
+                fileMime: file.type,
+                createdAt: new Date().toISOString()
+            };
+
+            // Convert file to Base64
+            if (file.size <= MAX_FILE_BYTES) {
+                status.textContent = 'Mengunggah...';
+                try {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = function () {
+                        meta.fileBase64 = reader.result.split(',')[1];
+                        saveData(meta);
+                    };
+                    reader.onerror = function (error) {
+                        console.log('Error: ', error);
+                        status.textContent = 'Gagal membaca file';
+                    };
+                } catch(e){
+                    status.textContent='Gagal.'; return;
+                }
+            } else {
+                saveData(meta); // Simpan meta saja tanpa file fisik (karena limit storage browser)
+            }
+
+            function saveData(dataItem) {
+                const arr = loadCollections();
+                arr.push(dataItem);
+                saveCollections(arr);
+                status.style.color='green';
+                status.textContent = 'Berhasil diunggah.';
+                // Reset form
+                document.getElementById('uploadTitle').value='';
+                document.getElementById('uploadFile').value='';
+                renderMyUploads();
+                updateCategoryCounts();
+            }
+        }
+
+        function renderMyUploads(){
+            const session = (typeof getSession === 'function') ? getSession() : null;
+            if (!session) return;
+            const list = loadCollections().filter(c => String(c.authorEmail||'').toLowerCase() === session.email.toLowerCase());
+            const container = document.getElementById('myUploadsList');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            if (list.length === 0) { container.innerHTML = '<p style="color:#888">Belum ada unggahan.</p>'; return; }
+
+            list.slice().reverse().forEach(it => {
+                const el = document.createElement('div');
+                el.className = 'report-card';
+                el.style.marginBottom = '8px';
+                el.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong>${it.title}</strong> <span style="font-size:0.8em; background:#eee; padding:2px 6px; border-radius:4px;">${it.type}</span>
+                            <div style="color:var(--color-text-light); font-size:0.9em;">${it.year} • ${it.fileName}</div>
+                        </div>
+                        <button onclick="deleteUpload(${it.id})" style="padding:6px 10px; background:#f8d7da; border:none; border-radius:4px; cursor:pointer; color:#721c24;">Hapus</button>
+                    </div>`;
+                container.appendChild(el);
+            });
+        }
+
+        // Expose global function for onclick
+        window.deleteUpload = function(id) {
+            if(!confirm('Hapus dokumen ini?')) return;
+            const arr = loadCollections().filter(x => String(x.id) !== String(id));
+            saveCollections(arr);
+            renderMyUploads();
+            updateCategoryCounts();
+        };
+
+        // Inisialisasi
+        document.addEventListener('DOMContentLoaded', () => {
+            updateCategoryCounts();
+            if (typeof isAuthenticated === 'function' && isAuthenticated()) {
+                renderMyUploads();
+            }
+            
+            // Event listener untuk tombol cari
+            const btnSearch = document.getElementById('btnDoSearch');
+            if(btnSearch) btnSearch.addEventListener('click', performSearch);
+
+            // Event listener untuk upload
+            const btnUpload = document.getElementById('uploadBtn');
+            if(btnUpload) btnUpload.addEventListener('click', handleUpload);
+        });
+    </script>
+</body>
+</html>
