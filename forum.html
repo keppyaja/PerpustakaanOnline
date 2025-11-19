@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Perpusri — Forum Diskusi</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="auth.js"></script>
+    <style>
+        /* minimal layout for forum */
+        .forum-wrap { display:flex; gap:18px; padding:20px; align-items:flex-start; }
+        .forum-sections { width:200px; }
+        .forum-sections .section { padding:8px 10px; border-radius:8px; cursor:pointer; margin-bottom:6px; background:#fafafa; border:1px solid #eee; }
+        .forum-sections .section.active { background:var(--color-primary,#2d8cff); color:#fff; }
+        .forum-topics { flex:1; max-width:520px; }
+        .forum-topics .topic { padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid #eee; background:#fff; display:flex; justify-content:space-between; gap:8px; }
+        .forum-detail { flex:1; max-width:560px; }
+        .meta { color:var(--color-text-light,#777); font-size:0.9em; }
+        .btn { padding:6px 8px; border-radius:6px; border:none; cursor:pointer; background:#f1f1f1; }
+        .vote { display:inline-flex; gap:6px; align-items:center; font-weight:600; }
+        .comment { padding:8px; border-radius:8px; background:#fbfbfb; border:1px solid #eee; margin-bottom:8px; }
+        .reply { margin-left:18px; }
+        .small-note { color:var(--color-text-light,#777); font-size:0.9em; }
+        .form-inline { display:flex; gap:8px; margin-top:8px; }
+        textarea { width:100%; min-height:86px; padding:8px; border-radius:6px; border:1px solid #ddd; }
+        input[type="text"] { width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <header class="navbar">
+        <div class="logo" style="font-weight:700;">Perpusri</div>
+        <nav style="display:flex;gap:12px;align-items:center;flex:1;">
+            <a href="index.html">Home</a>
+            <a href="buku.html">Buku</a>
+            <a href="jurnal.html">Jurnal</a>
+            <a href="skripsi.html">Skripsi</a>
+            <a href="tesis.html">Tesis</a>
+            <a href="disertasi.html">Disertasi</a>
+            <a href="forum.html" class="active" style="color:var(--color-primary,#4a90e2);">Forum</a>
+            <a href="profil.html">Profil</a>
+        </nav>
+        <div class="profile-icon" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+            <img src="" alt="avatar" style="width:36px;height:36px;border-radius:50%;object-fit:cover;display:none;">
+            <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ddd;font-weight:700;color:#333;">D</div>
+        </div>
+    </header>
+
+    <main style="padding:16px;">
+        <h1>Forum Diskusi</h1>
+        <p class="small-note">Buat topik, berkomentar, dan dukung/tidak dukung (upvote/downvote). Data disimpan di browser untuk demo.</p>
+
+        <div class="forum-wrap">
+            <div class="forum-sections" id="sectionsList">
+                <!-- sections rendered here -->
+            </div>
+
+            <div class="forum-topics">
+                <div style="margin-bottom:12px;">
+                    <h3>Topik — <span id="currentSectionName">Semua</span></h3>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input id="newTopicTitle" placeholder="Judul topik baru..." type="text">
+                        <select id="newTopicSection" style="padding:8px;border-radius:6px;">
+                            <!-- options populated dynamically -->
+                        </select>
+                    </div>
+                    <textarea id="newTopicBody" placeholder="Deskripsikan topik / pertanyaan..."></textarea>
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        <button id="btnCreateTopic" class="btn">Buat Topik</button>
+                        <button id="btnClearTopic" class="btn">Bersihkan</button>
+                    </div>
+                </div>
+
+                <div id="topicsList"></div>
+            </div>
+
+            <div class="forum-detail">
+                <div id="topicDetailPane">
+                    <p class="small-note">Pilih topik untuk melihat detail dan komentar.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    (function(){
+        // verifikasi: jika belum login arahkan ke login.html
+        try {
+            const _sess = (typeof getSession === 'function') ? getSession() : JSON.parse(localStorage.getItem('perpusri_session') || 'null');
+            if (!(_sess && _sess.email)) {
+                window.location.replace('login.html');
+                return;
+            }
+        } catch(e) {
+            window.location.replace('login.html');
+            return;
+        }
+ 
+        // storage key
+        const KEY_FORUM = 'perpusri_forum_v1';
+        // predefined sections
+        const SECTIONS = [
+            { id: 'general', name: 'Umum' },
+            { id: 'research', name: 'Bantuan Penelitian' },
+            { id: 'resources', name: 'Sumber & Referensi' },
+            { id: 'announcements', name: 'Pengumuman' },
+            { id: 'feedback', name: 'Saran & Masukan' }
+        ];
+
+        // helpers
+        function readJSON(k, fallback){ try { return JSON.parse(localStorage.getItem(k) || 'null') || fallback; } catch(e){ return fallback; } }
+        function saveJSON(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+        function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+        function loadForum(){ return readJSON(KEY_FORUM, []); }
+        function saveForum(data){ saveJSON(KEY_FORUM, data); }
+
+        // vote helpers: returns true if user has voted
+        function getSessionSafe(){ try { if (typeof getSession === 'function') return getSession(); } catch(e){} return JSON.parse(localStorage.getItem('perpusri_session') || 'null'); }
+        function currentUserEmail(){ const s = getSessionSafe(); return s && s.email ? String(s.email).toLowerCase() : null; }
+
+        // render sections
+        function renderSections(selectedId){
+            const container = document.getElementById('sectionsList');
+            container.innerHTML = '';
+            SECTIONS.forEach(sec=>{
+                const el = document.createElement('div');
+                el.className = 'section' + (sec.id === selectedId ? ' active' : '');
+                el.dataset.id = sec.id;
+                el.textContent = sec.name;
+                el.addEventListener('click', ()=> {
+                    renderTopicsList(sec.id);
+                });
+                container.appendChild(el);
+            });
+            // add "All" control top
+            const allBtn = document.createElement('div');
+            allBtn.className = 'section';
+            allBtn.textContent = 'Semua Topik';
+            allBtn.style.fontWeight = '700';
+            allBtn.addEventListener('click', ()=> renderTopicsList(null));
+            container.insertBefore(allBtn, container.firstChild);
+        }
+
+        // render topics list (optionally filtered by section)
+        function renderTopicsList(sectionId){
+            const data = loadForum();
+            const filtered = sectionId ? data.filter(t=>t.sectionId === sectionId) : data;
+            const list = document.getElementById('topicsList');
+            list.innerHTML = '';
+            document.getElementById('currentSectionName').textContent = sectionId ? (SECTIONS.find(s=>s.id===sectionId)||{name:'-'}).name : 'Semua';
+            // sort by last activity (comments or created)
+            filtered.sort((a,b)=> (b.updatedAt||b.createdAt) - (a.updatedAt||a.createdAt));
+            if (filtered.length === 0) { list.innerHTML = '<p class="small-note">Belum ada topik di sini.</p>'; return; }
+            filtered.forEach(t=>{
+                const el = document.createElement('div');
+                el.className = 'topic';
+                el.innerHTML = `
+                    <div style="flex:1;">
+                        <strong>${escapeHtml(t.title)}</strong>
+                        <div class="meta">${escapeHtml(t.sectionName||'')} · oleh ${escapeHtml(t.authorEmail||'Anon')} · ${new Date(t.createdAt).toLocaleString()}</div>
+                    </div>
+                    <div style="min-width:120px; text-align:right;">
+                        <div class="vote" data-topic="${t.id}">
+                            <button class="btn btn-up" data-action="up" title="Dukung"><i class="fas fa-thumbs-up"></i></button>
+                            <span class="count-up">${(t.votes && t.votes.up ? t.votes.up.length : 0)}</span>
+                            <button class="btn btn-down" data-action="down" title="Tidak mendukung"><i class="fas fa-thumbs-down"></i></button>
+                            <span class="count-down">${(t.votes && t.votes.down ? t.votes.down.length : 0)}</span>
+                        </div>
+                        <div style="margin-top:6px;">
+                            <button class="btn btn-open" data-open="${t.id}">Buka</button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(el);
+            });
+        }
+
+        // open topic detail
+        function openTopic(topicId){
+            const data = loadForum();
+            const topic = data.find(t=>t.id===topicId);
+            const pane = document.getElementById('topicDetailPane');
+            if (!topic) { pane.innerHTML = '<p>Pilih topik untuk melihat detail.</p>'; return; }
+            // header
+            pane.innerHTML = `
+                <div style="margin-bottom:12px;">
+                    <h3>${escapeHtml(topic.title)}</h3>
+                    <div class="meta">${escapeHtml(topic.sectionName||'')} · oleh ${escapeHtml(topic.authorEmail||'Anon')} · ${new Date(topic.createdAt).toLocaleString()}</div>
+                    <p style="margin-top:8px;">${escapeHtml(topic.body)}</p>
+                    <div style="margin-top:6px;">
+                        <span class="vote" data-topic="${topic.id}">
+                            <button class="btn btn-up" data-action="up"><i class="fas fa-thumbs-up"></i></button>
+                            <span class="count-up">${(topic.votes && topic.votes.up ? topic.votes.up.length : 0)}</span>
+                            <button class="btn btn-down" data-action="down"><i class="fas fa-thumbs-down"></i></button>
+                            <span class="count-down">${(topic.votes && topic.votes.down ? topic.votes.down.length : 0)}</span>
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <h4>Komentar</h4>
+                    <div id="commentsList"></div>
+
+                    <div style="margin-top:8px;">
+                        <textarea id="newCommentBody" placeholder="Tulis komentar..." ></textarea>
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button id="btnPostComment" class="btn">Kirim Komentar</button>
+                            <button id="btnClearComment" class="btn">Bersihkan</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            renderComments(topicId);
+
+            // attach listeners for vote in detail pane
+            pane.querySelectorAll('.btn-up, .btn-down').forEach(b=>{
+                b.addEventListener('click', (ev)=> {
+                    const action = ev.currentTarget.dataset.action;
+                    voteTopic(topicId, action);
+                });
+            });
+
+            // post comment
+            const btnPost = document.getElementById('btnPostComment');
+            if (btnPost) btnPost.addEventListener('click', ()=> {
+                const body = document.getElementById('newCommentBody').value.trim();
+                if (!body) { alert('Komentar kosong.'); return; }
+                addComment(topicId, null, body);
+                document.getElementById('newCommentBody').value = '';
+                renderComments(topicId);
+                renderTopicsList(topic.sectionId || null);
+            });
+            const btnClear = document.getElementById('btnClearComment');
+            if (btnClear) btnClear.addEventListener('click', ()=> document.getElementById('newCommentBody').value = '');
+        }
+
+        // render comments (flat with parent-child)
+        function renderComments(topicId){
+            const topic = loadForum().find(t=>t.id===topicId);
+            const container = document.getElementById('commentsList');
+            container.innerHTML = '';
+            if (!topic || !topic.comments || topic.comments.length===0) { container.innerHTML = '<p class="small-note">Belum ada komentar.</p>'; return; }
+            // build map parent -> children
+            const map = {};
+            topic.comments.forEach(c=> { map[c.id] = Object.assign({}, c, { children: [] }); });
+            const roots = [];
+            topic.comments.forEach(c=>{
+                if (c.parentId && map[c.parentId]) map[c.parentId].children.push(map[c.id]);
+                else roots.push(map[c.id]);
+            });
+
+            function renderNode(node, level){
+                const div = document.createElement('div');
+                div.className = 'comment' + (level ? ' reply' : '');
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; gap:8px;">
+                        <div><strong>${escapeHtml(node.authorEmail||'Anon')}</strong> <div class="meta" style="margin-top:4px">${new Date(node.createdAt).toLocaleString()}</div></div>
+                        <div style="text-align:right;">
+                            <div class="vote" data-topic="${topicId}" data-comment="${node.id}">
+                                <button class="btn btn-up" data-action="up"><i class="fas fa-thumbs-up"></i></button>
+                                <span class="count-up">${(node.votes && node.votes.up ? node.votes.up.length : 0)}</span>
+                                <button class="btn btn-down" data-action="down"><i class="fas fa-thumbs-down"></i></button>
+                                <span class="count-down">${(node.votes && node.votes.down ? node.votes.down.length : 0)}</span>
+                            </div>
+                            <div style="margin-top:6px;">
+                                <button class="btn btn-reply" data-reply="${node.id}">Balas</button>
+                                <button class="btn btn-del" data-del="${node.id}">Hapus</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top:8px;">${escapeHtml(node.content)}</div>
+                    <div class="replyFormWrap" data-for="${node.id}" style="display:none; margin-top:8px;">
+                        <textarea class="replyBody" placeholder="Balas..."></textarea>
+                        <div style="display:flex; gap:8px; margin-top:6px;">
+                            <button class="btn btn-send-reply">Kirim</button>
+                            <button class="btn btn-cancel-reply">Batal</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+
+                // attach vote handlers
+                div.querySelectorAll('.btn-up, .btn-down').forEach(b=>{
+                    b.addEventListener('click', (ev)=> {
+                        const action = ev.currentTarget.dataset.action;
+                        voteComment(topicId, node.id, action);
+                    });
+                });
+                // reply, delete
+                const replyBtn = div.querySelector('.btn-reply');
+                if (replyBtn) replyBtn.addEventListener('click', ()=> {
+                    const wrap = div.querySelector('.replyFormWrap');
+                    wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+                });
+                const delBtn = div.querySelector('.btn-del');
+                if (delBtn) delBtn.addEventListener('click', ()=> {
+                    if (!confirm('Hapus komentar ini?')) return;
+                    deleteComment(topicId, node.id);
+                    renderComments(topicId);
+                    renderTopicsList(topic.sectionId || null);
+                });
+
+                // reply form handlers
+                const send = div.querySelector('.btn-send-reply');
+                const cancel = div.querySelector('.btn-cancel-reply');
+                if (send) send.addEventListener('click', ()=> {
+                    const body = div.querySelector('.replyBody').value.trim();
+                    if (!body) { alert('Balasan kosong'); return; }
+                    addComment(topicId, node.id, body);
+                    renderComments(topicId);
+                    renderTopicsList(topic.sectionId || null);
+                });
+                if (cancel) cancel.addEventListener('click', ()=> {
+                    const wrap = div.querySelector('.replyFormWrap');
+                    wrap.style.display = 'none';
+                });
+
+                // render children
+                if (node.children && node.children.length) node.children.forEach(ch => renderNode(ch, level+1));
+            }
+
+            roots.forEach(r => renderNode(r, 0));
+        }
+
+        // create topic
+        function addTopic(title, body, sectionId){
+            const session = getSessionSafe();
+            const data = loadForum();
+            const sec = SECTIONS.find(s=>s.id===sectionId) || SECTIONS[0];
+            const t = {
+                id: uid(),
+                title: title,
+                body: body,
+                sectionId: sec.id,
+                sectionName: sec.name,
+                authorEmail: session && session.email ? session.email : 'Anon',
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                votes: { up: [], down: [] },
+                comments: []
+            };
+            data.push(t);
+            saveForum(data);
+            // notify and re-render
+            renderTopicsList(sectionId);
+            openTopic(t.id);
+            try { localStorage.setItem(KEY_FORUM, JSON.stringify(data)); } catch(e){}
+        }
+
+        // add comment (parentId=null for top-level)
+        function addComment(topicId, parentId, body){
+            const session = getSessionSafe();
+            const data = loadForum();
+            const topic = data.find(t=>t.id===topicId);
+            if (!topic) return;
+            const c = {
+                id: uid(),
+                parentId: parentId || null,
+                content: body,
+                authorEmail: session && session.email ? session.email : 'Anon',
+                createdAt: Date.now(),
+                votes: { up: [], down: [] }
+            };
+            topic.comments.push(c);
+            topic.updatedAt = Date.now();
+            saveForum(data);
+            try { localStorage.setItem(KEY_FORUM, JSON.stringify(data)); } catch(e){}
+        }
+
+        // delete comment (cascading delete of children)
+        function deleteComment(topicId, commentId){
+            const data = loadForum();
+            const topic = data.find(t=>t.id===topicId);
+            if (!topic) return;
+            // remove comment and its descendants
+            const toRemove = new Set();
+            function collect(id){
+                toRemove.add(id);
+                topic.comments.forEach(c=> { if (c.parentId === id) collect(c.id); });
+            }
+            collect(commentId);
+            topic.comments = topic.comments.filter(c => !toRemove.has(c.id));
+            topic.updatedAt = Date.now();
+            saveForum(data);
+            try { localStorage.setItem(KEY_FORUM, JSON.stringify(data)); } catch(e){}
+        }
+
+        // voting
+        function voteTopic(topicId, action){
+            const user = currentUserEmail();
+            if (!user) { alert('Silakan login untuk memberikan suara.'); return; }
+            const data = loadForum();
+            const topic = data.find(t=>t.id===topicId);
+            if (!topic) return;
+            topic.votes = topic.votes || { up: [], down: [] };
+            const uIdx = topic.votes.up.indexOf(user);
+            const dIdx = topic.votes.down.indexOf(user);
+            if (action === 'up') {
+                if (uIdx === -1) topic.votes.up.push(user);
+                if (dIdx !== -1) topic.votes.down.splice(dIdx,1);
+            } else {
+                if (dIdx === -1) topic.votes.down.push(user);
+                if (uIdx !== -1) topic.votes.up.splice(uIdx,1);
+            }
+            topic.updatedAt = Date.now();
+            saveForum(data);
+            renderTopicsList(topic.sectionId || null);
+            openTopic(topicId);
+            try { localStorage.setItem(KEY_FORUM, JSON.stringify(data)); } catch(e){}
+        }
+
+        function voteComment(topicId, commentId, action){
+            const user = currentUserEmail();
+            if (!user) { alert('Silakan login untuk memberikan suara.'); return; }
+            const data = loadForum();
+            const topic = data.find(t=>t.id===topicId);
+            if (!topic) return;
+            const c = topic.comments.find(x=>x.id===commentId);
+            if (!c) return;
+            c.votes = c.votes || { up: [], down: [] };
+            const uIdx = c.votes.up.indexOf(user);
+            const dIdx = c.votes.down.indexOf(user);
+            if (action === 'up') {
+                if (uIdx === -1) c.votes.up.push(user);
+                if (dIdx !== -1) c.votes.down.splice(dIdx,1);
+            } else {
+                if (dIdx === -1) c.votes.down.push(user);
+                if (uIdx !== -1) c.votes.up.splice(uIdx,1);
+            }
+            topic.updatedAt = Date.now();
+            saveForum(data);
+            renderComments(topicId);
+            renderTopicsList(topic.sectionId || null);
+            try { localStorage.setItem(KEY_FORUM, JSON.stringify(data)); } catch(e){}
+        }
+
+        // init UI and events
+        function initForum(){
+            // populate section select
+            const sel = document.getElementById('newTopicSection');
+            sel.innerHTML = '';
+            SECTIONS.forEach(s => {
+                const op = document.createElement('option'); op.value = s.id; op.textContent = s.name;
+                sel.appendChild(op);
+            });
+
+            renderSections(null);
+            renderTopicsList(null);
+
+            document.getElementById('btnCreateTopic').addEventListener('click', ()=>{
+                const title = document.getElementById('newTopicTitle').value.trim();
+                const body = document.getElementById('newTopicBody').value.trim();
+                const sectionId = document.getElementById('newTopicSection').value;
+                if (!title) { alert('Judul topik wajib diisi.'); return; }
+                addTopic(title, body, sectionId);
+                document.getElementById('newTopicTitle').value = '';
+                document.getElementById('newTopicBody').value = '';
+            });
+            document.getElementById('btnClearTopic').addEventListener('click', ()=>{
+                document.getElementById('newTopicTitle').value = '';
+                document.getElementById('newTopicBody').value = '';
+            });
+
+            // delegate open/vote buttons in topics list
+            document.getElementById('topicsList').addEventListener('click', (ev)=>{
+                const openBtn = ev.target.closest('.btn-open');
+                if (openBtn) {
+                    const id = openBtn.dataset.open;
+                    openTopic(id);
+                    return;
+                }
+                const voteWrap = ev.target.closest('.vote');
+                if (!voteWrap) return;
+                const topicId = voteWrap.dataset.topic;
+                // if comment vote in list not supported here
+                const btn = ev.target.closest('.btn-up, .btn-down');
+                if (btn) {
+                    const action = btn.dataset.action;
+                    voteTopic(topicId, action);
+                }
+            });
+
+            // storage events to sync between tabs
+            window.addEventListener('storage', (ev)=> {
+                if (ev.key === KEY_FORUM || !ev.key) {
+                    // refresh lists and detail if open
+                    renderSections(null);
+                    renderTopicsList(null);
+                    const detailPane = document.getElementById('topicDetailPane');
+                    const opened = detailPane.querySelector('[data-topic]') ? detailPane.querySelector('[data-topic]').dataset.topic : null;
+                    if (opened) openTopic(opened);
+                }
+                if (ev.key === 'perpusri_session') {
+                    // re-render to reflect login changes
+                    renderTopicsList(null);
+                }
+            });
+        }
+
+        // initial sample data if empty (non-intrusive)
+        (function ensureSample(){
+            if (!localStorage.getItem(KEY_FORUM)) {
+                const sample = [
+                    { id: uid(), title: 'Cara mencari jurnal terkini?', body: 'Bagaimana tips mencari jurnal open access yang relevan?', sectionId:'research', sectionName:'Bantuan Penelitian', authorEmail:'user1@contoh.com', createdAt: Date.now()-86400000, updatedAt: Date.now()-86400000, votes:{up:[],down:[]}, comments:[] },
+                    { id: uid(), title: 'Situs referensi gratis?', body: 'Kumpulkan tautan perpustakaan dan repositori gratis', sectionId:'resources', sectionName:'Sumber & Referensi', authorEmail:'user2@contoh.com', createdAt: Date.now()-3600000, updatedAt: Date.now()-3600000, votes:{up:[],down:[]}, comments:[] }
+                ];
+                saveForum(sample);
+            }
+        })();
+
+        // run init on DOM ready
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initForum);
+        else initForum();
+    })();
+    </script>
+</body>
+</html>

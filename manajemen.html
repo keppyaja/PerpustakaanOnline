@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Perpusri — Manajemen Pengguna</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="auth.js"></script>
+    <script>
+        // proteksi halaman: hanya admin
+        const _s = getSession();
+        if (!_s) window.location.replace('login.html');
+        else if (!_s.isAdmin) window.location.replace('user.html');
+    </script>
+</head>
+<body>
+    <div class="admin-view">
+        <header class="admin-navbar">
+            <div class="nav-left">
+                <button class="admin-panel-button">Admin Panel</button>
+                <nav class="admin-nav-links">
+                    <a href="admin.html">Dashboard</a>
+                    <a href="admin_users.html" class="active">Manajemen Pengguna</a>
+                </nav>
+            </div>
+            <div class="nav-right">
+                <span class="admin-tag"><i class="fas fa-user-shield"></i> ADMIN</span>
+                <div class="profile-icon" id="adminInitial">A</div>
+            </div>
+        </header>
+
+        <main class="admin-dashboard" style="padding:20px;">
+            <h1>Manajemen Pengguna</h1>
+            <p>Berikan peringatan, hapus akun, atau hapus file yang diupload pengguna.</p>
+
+            <section class="card" style="margin-bottom:16px;">
+                <h3>Daftar Pengguna</h3>
+                <div id="usersTable"></div>
+            </section>
+
+            <section class="card" style="margin-bottom:16px;">
+                <h3>Riwayat Peringatan (Simulasi)</h3>
+                <div id="warningsLog"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal: kirim peringatan -->
+    <div id="warnModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); align-items:center; justify-content:center;">
+        <div class="card" style="width:420px;">
+            <h3>Kirim Peringatan</h3>
+            <p id="warnTarget" style="color:var(--color-text-light)"></p>
+            <textarea id="warnMsg" placeholder="Tulis pesan peringatan (min 10 karakter)" style="width:100%; height:110px; padding:8px; margin:8px 0;"></textarea>
+            <div style="display:flex; gap:8px;">
+                <button id="sendWarnBtn" class="read-button" style="flex:1;">Kirim</button>
+                <button id="closeWarnBtn" style="flex:1; background:#eee; border:none; padding:10px; border-radius:6px;">Batal</button>
+            </div>
+            <div id="warnFeedback" style="margin-top:8px;"></div>
+        </div>
+    </div>
+
+    <script>
+        const KEY_USERS = 'perpusri_users';
+        const KEY_COLL = 'perpusri_collections';
+        const KEY_WARN = 'perpusri_warnings';
+
+        function loadUsers(){ return JSON.parse(localStorage.getItem(KEY_USERS) || '[]'); }
+        function saveUsers(u){ localStorage.setItem(KEY_USERS, JSON.stringify(u)); }
+
+        function loadCollections(){ return JSON.parse(localStorage.getItem(KEY_COLL) || '[]'); }
+        function saveCollections(c){ localStorage.setItem(KEY_COLL, JSON.stringify(c)); }
+
+        function loadWarnings(){ return JSON.parse(localStorage.getItem(KEY_WARN) || '[]'); }
+        function saveWarnings(w){ localStorage.setItem(KEY_WARN, JSON.stringify(w)); }
+
+        // ensure initial demo users exist (compatible with admin.html)
+        if (!localStorage.getItem(KEY_USERS)) {
+            saveUsers([
+                { email: 'user1@contoh.com', name: 'User Satu' },
+                { email: 'user2@contoh.com', name: 'User Dua' },
+                { email: 'admin@perpusri.test', name: 'Administrator' }
+            ]);
+        }
+
+        function renderUsersTable(){
+            const users = loadUsers();
+            const container = document.getElementById('usersTable');
+            if (!users || users.length===0){ container.innerHTML = '<p>Tidak ada pengguna.</p>'; return; }
+            let html = `<table style="width:100%; border-collapse:collapse;"> 
+                <thead><tr style="text-align:left;"><th>Nama</th><th>Email</th><th style="width:320px">Aksi</th></tr></thead><tbody>`;
+            users.forEach(u=>{
+                html += `<tr class="report-card" style="vertical-align:middle;">
+                    <td style="padding:8px;"><strong>${u.name||u.email}</strong></td>
+                    <td style="padding:8px;color:var(--color-text-light)">${u.email}</td>
+                    <td style="padding:8px; display:flex; gap:8px;">
+                        <button data-email="${u.email}" class="btnWarn" style="padding:6px 10px;">Peringatkan</button>
+                        <button data-email="${u.email}" class="btnDelUploads" style="padding:6px 10px; background:#f8d7da; border:none;">Hapus Upload</button>
+                        <button data-email="${u.email}" class="btnDeleteUser" style="padding:6px 10px; background:#f5c6cb; border:none;">Hapus User</button>
+                    </td>
+                </tr>`;
+            });
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+
+            // attach handlers
+            container.querySelectorAll('.btnWarn').forEach(b=>b.addEventListener('click', (e)=>{
+                const email = e.currentTarget.dataset.email;
+                openWarnModal(email);
+            }));
+            container.querySelectorAll('.btnDelUploads').forEach(b=>b.addEventListener('click', (e)=>{
+                const email = e.currentTarget.dataset.email;
+                if (!confirm('Hapus semua file yang diupload oleh ' + email + ' ?')) return;
+                deleteUploadsOf(email);
+                renderUsersTable();
+                renderWarnings();
+                alert('Upload milik ' + email + ' telah dihapus.');
+            }));
+            container.querySelectorAll('.btnDeleteUser').forEach(b=>b.addEventListener('click', (e)=>{
+                const email = e.currentTarget.dataset.email;
+                if (email.toLowerCase() === 'admin@perpusri.test') { alert('Akun admin tidak dapat dihapus dari sini.'); return; }
+                if (!confirm('Konfirmasi: hapus user ' + email + ' ?')) return;
+                deleteUser(email);
+                renderUsersTable();
+                renderWarnings();
+                alert('User dihapus: ' + email);
+            }));
+        }
+
+        function deleteUploadsOf(email){
+            const cols = loadCollections().filter(c=> (c.authorEmail||'').toLowerCase() !== String(email).toLowerCase());
+            saveCollections(cols);
+        }
+
+        function deleteUser(email){
+            // hapus user + hapus pula uploads miliknya
+            const users = loadUsers().filter(u=> (u.email||'').toLowerCase() !== String(email).toLowerCase());
+            saveUsers(users);
+            deleteUploadsOf(email);
+            // optionally remove warnings to/from user
+            const warns = loadWarnings().filter(w=> w.to.toLowerCase() !== String(email).toLowerCase());
+            saveWarnings(warns);
+        }
+
+        // WARNING modal handling
+        const warnModal = document.getElementById('warnModal');
+        const warnTarget = document.getElementById('warnTarget');
+        const warnMsg = document.getElementById('warnMsg');
+        const sendWarnBtn = document.getElementById('sendWarnBtn');
+        const closeWarnBtn = document.getElementById('closeWarnBtn');
+        const warnFeedback = document.getElementById('warnFeedback');
+        let currentWarnTarget = null;
+
+        function openWarnModal(email){
+            currentWarnTarget = String(email).toLowerCase();
+            warnTarget.textContent = 'Kepada: ' + currentWarnTarget;
+            warnMsg.value = '';
+            warnFeedback.textContent = '';
+            warnModal.style.display = 'flex';
+            warnMsg.focus();
+        }
+
+        closeWarnBtn.addEventListener('click', ()=> warnModal.style.display = 'none');
+
+        sendWarnBtn.addEventListener('click', ()=>{
+            const msg = (warnMsg.value||'').trim();
+            if (!currentWarnTarget) { warnFeedback.style.color='red'; warnFeedback.textContent='Target tidak ditentukan.'; return; }
+            if (msg.length < 10) { warnFeedback.style.color='red'; warnFeedback.textContent='Pesan minimal 10 karakter.'; return; }
+            // simpan peringatan (simulasi)
+            const warns = loadWarnings();
+            warns.push({ to: currentWarnTarget, from: getSession().email, message: msg, date: new Date().toISOString() });
+            saveWarnings(warns);
+            warnFeedback.style.color = 'green';
+            warnFeedback.textContent = 'Peringatan dikirim (simulasi).';
+            setTimeout(()=>{ warnModal.style.display='none'; renderWarnings(); }, 800);
+        });
+
+        // render riwayat peringatan
+        function renderWarnings(){
+            const list = loadWarnings();
+            const container = document.getElementById('warningsLog');
+            if (!list || list.length===0){ container.innerHTML = '<p>Tidak ada peringatan tersimpan.</p>'; return; }
+            container.innerHTML = '';
+            list.slice().reverse().forEach(w=>{
+                const d = document.createElement('div');
+                d.className = 'report-card';
+                d.style.marginBottom = '8px';
+                d.innerHTML = `<strong>Ke: ${w.to}</strong> <div style="color:var(--color-text-light)">${w.message}</div><div style="font-size:0.8em;color:var(--color-text-light)">${new Date(w.date).toLocaleString()} — dari ${w.from}</div>`;
+                container.appendChild(d);
+            });
+        }
+
+        // init
+        renderUsersTable();
+        renderWarnings();
+        const s = getSession();
+        if (s && s.email) document.getElementById('adminInitial').textContent = s.email[0].toUpperCase();
+    </script>
+</body>
+</html>

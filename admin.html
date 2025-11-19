@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Perpusri — Admin Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="auth.js"></script>
+    <script>
+        // akses eksklusif admin: jika bukan admin, redirect
+        const _s = getSession();
+        if (!_s) window.location.replace('login.html');
+        else if (!_s.isAdmin) window.location.replace('user.html');
+    </script>
+</head>
+<body>
+    <div class="admin-view">
+        <header class="admin-navbar">
+            <div class="nav-left">
+                <button class="admin-panel-button">Admin Panel</button>
+                <nav class="admin-nav-links">
+                    <a href="admin.html" class="active">Dashboard</a>
+                    <a href="#collectionSection" id="nav-manage-collections">Kelola Koleksi</a>
+                    <a href="manajemen.html" id="nav-manage-users">Manajemen User</a>
+                </nav>
+            </div>
+            <div class="nav-right">
+                <span class="admin-tag"><i class="fas fa-user-shield"></i> ADMIN</span>
+                <div class="profile-icon" id="adminInitial">A</div>
+                <button id="btnEditAdminProfile" title="Ubah profil admin" style="margin-left:8px; padding:6px 8px; border-radius:6px; background:#eef6ff; border:1px solid #d0e8ff;"><i class="fas fa-edit"></i></button>
+                <button id="btnWarnAll" title="Peringatkan semua user" style="margin-left:8px; padding:6px 8px; border-radius:6px; background:#fff3cd; border:1px solid #ffeeba; color:#856404;"><i class="fas fa-bell"></i></button>
+            </div>
+        </header>
+
+        <main class="admin-dashboard" style="padding:20px;">
+            <h1>Dashboard Administrator</h1>
+            <p>Kelola koleksi digital dan akun pengguna dari sini.</p>
+
+            <!-- Statistik singkat -->
+            <div class="stats-grid" id="statsGrid" style="margin-bottom:20px;"></div>
+
+            <!-- Area utama: Koleksi / Manajemen User -->
+            <section id="collectionsSection">
+                <h2>Kelola Koleksi Digital</h2>
+
+                <!-- Form Upload/Update -->
+                <div class="card" style="margin-bottom:16px;">
+                    <h3 id="formTitle">Tambah Koleksi</h3>
+                    <input id="itemId" type="hidden">
+                    <label>Judul</label>
+                    <input id="itemTitle" style="width:100%; padding:8px; margin:6px 0;">
+                    <label>Jenis</label>
+                    <select id="itemType" style="width:100%; padding:8px; margin:6px 0;">
+                        <option value="jurnal">Jurnal</option>
+                        <option value="buku">Buku</option>
+                        <option value="artikel">Artikel</option>
+                        <option value="skripsi">Skripsi</option>
+                        <option value="tesis">Tesis</option>
+                        <option value="disertasi">Disertasi</option>
+                    </select>
+                    <label>Penulis (email)</label>
+                    <input id="itemAuthor" style="width:100%; padding:8px; margin:6px 0;" placeholder="author@contoh.com">
+                    <label>Tahun</label>
+                    <input id="itemYear" type="number" style="width:100%; padding:8px; margin:6px 0;" placeholder="2024">
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        <button id="saveItemBtn" class="read-button">Simpan</button>
+                        <button id="clearFormBtn" style="background:#eee; border:none; padding:10px; border-radius:6px;">Bersihkan</button>
+                    </div>
+                </div>
+
+                <!-- List Koleksi -->
+                <div class="card">
+                    <h3>Daftar Koleksi</h3>
+                    <div id="collectionsList"></div>
+                </div>
+            </section>
+
+            <section id="usersSection" style="display:none; margin-top:20px;">
+                <h2>Manajemen Akun User</h2>
+                <div class="card">
+                    <h3>Daftar Pengguna</h3>
+                    <div id="usersList"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal Ubah Profil Admin -->
+    <div id="editAdminModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); align-items:center; justify-content:center;">
+        <div class="card" style="width:380px;">
+            <h3>Ubah Profil Admin</h3>
+            <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px;">
+                <div style="width:72px; height:72px; border-radius:8px; overflow:hidden; background:#f1f1f1; display:flex; align-items:center; justify-content:center;">
+                    <img id="adminAvatarPreview" src="" alt="preview" style="width:100%; height:100%; object-fit:cover; display:none;">
+                    <div id="adminAvatarFallback" style="font-weight:700; color:#666; font-size:18px;">A</div>
+                </div>
+                <div style="flex:1;">
+                    <label>Unggah Foto Profil</label>
+                    <input id="adminAvatarFile" type="file" accept="image/*" style="width:100%; margin-top:6px;">
+                    <div class="small-note">Maks 2MB. Disimpan di localStorage untuk demo.</div>
+                </div>
+            </div>
+            <div style="margin-bottom:8px;">
+                <label>Nama tampilan</label>
+                <input id="adminEditName" style="width:100%; padding:8px; margin-top:6px;">
+            </div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+                <button id="saveAdminProfileBtn" class="read-button" style="flex:1;">Simpan</button>
+                <button id="closeAdminEditBtn" style="flex:1; background:#eee; border:none; padding:8px; border-radius:6px;">Batal</button>
+            </div>
+            <div id="adminEditFeedback" style="margin-top:8px;"></div>
+        </div>
+    </div>
+
+    <!-- Modal Peringatan ke User -->
+    <div id="warnUserModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); align-items:center; justify-content:center;">
+        <div class="card" style="width:420px;">
+            <h3>Kirim Peringatan</h3>
+            <div style="margin-bottom:8px;">
+                <div style="font-size:0.95em; color:var(--color-text-light)">Kepada: <strong id="warnTargetEmail">user@contoh.com</strong></div>
+            </div>
+            <div style="margin-bottom:8px;">
+                <label>Pesan peringatan</label>
+                <textarea id="warnMessage" style="width:100%; height:100px; padding:8px; margin-top:6px;"></textarea>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+                <button id="saveWarnBtn" class="read-button" style="flex:1;">Kirim</button>
+                <button id="closeWarnBtn" style="flex:1; background:#eee; border:none; padding:8px; border-radius:6px;">Batal</button>
+            </div>
+            <div id="warnFeedback" style="margin-top:8px;"></div>
+        </div>
+    </div>
+
+    <!-- Daftar peringatan (admin) -->
+    <section id="warningsSection" style="padding:0 20px 20px 20px;">
+        <div class="card" style="margin-top:12px;">
+            <h3>Peringatan Pengguna</h3>
+            <div id="warningsList"></div>
+        </div>
+    </section>
+
+    <script>
+        const KEY_WARN = 'perpusri_warnings';
+        function loadWarnings(){ return JSON.parse(localStorage.getItem(KEY_WARN) || '[]'); }
+        function saveWarnings(w){ localStorage.setItem(KEY_WARN, JSON.stringify(w)); }
+
+        // helper untuk konversi file -> base64 (digunakan di admin dan profil)
+        function fileToBase64Image(file){
+            return new Promise((resolve,reject)=>{
+                const r = new FileReader();
+                r.onload = ()=> {
+                    const res = String(r.result || '');
+                    const idx = res.indexOf('base64,');
+                    if (idx >= 0) resolve(res.slice(idx + 7));
+                    else resolve(res);
+                };
+                r.onerror = ()=> reject(new Error('Gagal baca file gambar'));
+                r.readAsDataURL(file);
+            });
+        }
+
+        // helper set header admin (avatar atau initial)
+        function setAdminHeader(session){
+            const el = document.getElementById('adminInitial');
+            if (!el) return;
+            if (session && session.avatarBase64) {
+                el.innerHTML = `<img src="data:image/*;base64,${session.avatarBase64}" alt="admin" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">`;
+            } else {
+                const initial = (session && session.name && session.name[0]) ? session.name[0].toUpperCase() : (session && session.email && session.email[0]) ? session.email[0].toUpperCase() : 'A';
+                el.textContent = initial;
+            }
+        }
+
+        // hook tombol dan modal admin profile
+        (function(){
+            const btn = document.getElementById('btnEditAdminProfile');
+            const modal = document.getElementById('editAdminModal');
+            const avatarFile = document.getElementById('adminAvatarFile');
+            const avatarPreview = document.getElementById('adminAvatarPreview');
+            const avatarFallback = document.getElementById('adminAvatarFallback');
+            const nameInput = document.getElementById('adminEditName');
+            const saveBtn = document.getElementById('saveAdminProfileBtn');
+            const closeBtn = document.getElementById('closeAdminEditBtn');
+            const feedback = document.getElementById('adminEditFeedback');
+            const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+            let pendingB64 = null;
+
+            function currentSession(){ return (typeof getSession === 'function') ? getSession() : JSON.parse(localStorage.getItem('perpusri_session') || 'null'); }
+
+            btn.addEventListener('click', ()=>{
+                const s = currentSession();
+                if (!s) return alert('Sesi tidak ditemukan');
+                pendingB64 = null;
+                nameInput.value = s.name || '';
+                // populate preview
+                if (s.avatarBase64) {
+                    avatarPreview.src = `data:image/*;base64,${s.avatarBase64}`; avatarPreview.style.display='block'; avatarFallback.style.display='none';
+                } else {
+                    avatarPreview.src = ''; avatarPreview.style.display='none'; avatarFallback.textContent = (s.name && s.name[0]) ? s.name[0].toUpperCase() : (s.email && s.email[0]) ? s.email[0].toUpperCase() : 'A'; avatarFallback.style.display='flex';
+                }
+                if (avatarFile) avatarFile.value = '';
+                feedback.textContent = '';
+                modal.style.display = 'flex';
+            });
+
+            if (avatarFile) avatarFile.addEventListener('change', async (e)=>{
+                const f = e.target.files && e.target.files[0];
+                if (!f){ pendingB64 = null; return; }
+                if (f.size > MAX_AVATAR_BYTES){ feedback.style.color='red'; feedback.textContent='Ukuran foto terlalu besar (maks 2MB)'; avatarFile.value=''; return; }
+                try {
+                    const b64 = await fileToBase64Image(f);
+                    pendingB64 = b64;
+                    avatarPreview.src = `data:image/*;base64,${b64}`; avatarPreview.style.display='block'; avatarFallback.style.display='none';
+                    // live update header so admin sees new avatar immediately
+                    const s = currentSession() || {};
+                    setAdminHeader(Object.assign({}, s, { avatarBase64: b64 }));
+                    feedback.textContent = '';
+                } catch(err){
+                    feedback.style.color='red'; feedback.textContent='Gagal memuat preview gambar.';
+                }
+            });
+
+            closeBtn.addEventListener('click', ()=> {
+                // revert header to session state
+                const s = currentSession(); setAdminHeader(s);
+                pendingB64 = null;
+                if (avatarFile) avatarFile.value = '';
+                modal.style.display = 'none';
+            });
+
+            saveBtn.addEventListener('click', async ()=>{
+                const newName = String(nameInput.value||'').trim();
+                if (!newName){ feedback.style.color='red'; feedback.textContent='Nama tidak boleh kosong.'; return; }
+                let avatarB64 = pendingB64;
+                const f = avatarFile && avatarFile.files && avatarFile.files[0];
+                if (!avatarB64 && f){
+                    if (f.size > MAX_AVATAR_BYTES){ feedback.style.color='red'; feedback.textContent='Ukuran foto terlalu besar (maks 2MB)'; return; }
+                    try { avatarB64 = await fileToBase64Image(f); } catch(e){ feedback.style.color='red'; feedback.textContent='Gagal membaca file gambar.'; return; }
+                }
+
+                // update users list
+                const users = loadUsers();
+                const s = currentSession();
+                const adminEmail = s && s.email ? String(s.email).toLowerCase() : null;
+                if (adminEmail) {
+                    const ui = users.findIndex(u => String(u.email||'').toLowerCase() === adminEmail);
+                    if (ui >= 0) {
+                        users[ui].name = newName;
+                        if (avatarB64) users[ui].avatarBase64 = avatarB64;
+                    } else {
+                        const nu = { email: adminEmail, name: newName };
+                        if (avatarB64) nu.avatarBase64 = avatarB64;
+                        users.push(nu);
+                    }
+                    saveUsers(users);
+                }
+
+                // update session
+                const updated = Object.assign({}, s || {}, { name: newName });
+                if (avatarB64) updated.avatarBase64 = avatarB64;
+                if (typeof saveSession === 'function') {
+                    try { saveSession(updated); } catch(e){ localStorage.setItem('perpusri_session', JSON.stringify(updated)); }
+                } else {
+                    localStorage.setItem('perpusri_session', JSON.stringify(updated));
+                }
+
+                // update UI
+                setAdminHeader(updated);
+                feedback.style.color = 'green'; feedback.textContent = 'Profil admin disimpan.';
+                pendingB64 = null;
+                setTimeout(()=> { modal.style.display='none'; }, 700);
+            });
+            // initial render of admin header from session
+            setAdminHeader(currentSession());
+        })();
+        // end admin profile module
+
+        // util untuk koleksi dan user (localStorage)
+        const KEY_COLL = 'perpusri_collections';
+        const KEY_USERS = 'perpusri_users';
+
+        function loadCollections(){ return JSON.parse(localStorage.getItem(KEY_COLL) || '[]'); }
+        function saveCollections(arr){ localStorage.setItem(KEY_COLL, JSON.stringify(arr)); }
+
+        function loadUsers(){ return JSON.parse(localStorage.getItem(KEY_USERS) || '[]'); }
+        function saveUsers(arr){ localStorage.setItem(KEY_USERS, JSON.stringify(arr)); }
+
+        // inisialisasi demo user list jika kosong
+        if (!localStorage.getItem(KEY_USERS)) {
+            saveUsers([
+                { email: 'user1@contoh.com', name: 'User Satu' },
+                { email: 'user2@contoh.com', name: 'User Dua' },
+                { email: 'admin@perpusri.test', name: 'Administrator' }
+            ]);
+        }
+
+        // render statistik
+        function renderStats(){
+            const cols = loadCollections();
+            const counts = cols.reduce((acc, it) => { acc[it.type] = (acc[it.type]||0)+1; return acc; }, {});
+            const grid = document.getElementById('statsGrid');
+            grid.innerHTML = '';
+            const types = ['jurnal','buku','artikel','skripsi','tesis','disertasi'];
+            types.forEach(t => {
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                card.innerHTML = `<div style="font-size:0.9em;color:var(--color-text-light)">${t.toUpperCase()}</div><div class="number">${counts[t]||0}</div>`;
+                grid.appendChild(card);
+            });
+        }
+
+        // render koleksi list
+        function renderCollections(){
+            const list = loadCollections();
+            const container = document.getElementById('collectionsList');
+            if (!container) return;
+            if (list.length === 0) { container.innerHTML = '<p>Tidak ada koleksi.</p>'; return; }
+            container.innerHTML = '';
+            list.slice().reverse().forEach(it => {
+                const div = document.createElement('div');
+                div.className = 'report-card';
+                div.style.display = 'flex';
+                div.style.justifyContent = 'space-between';
+                div.style.alignItems = 'center';
+                div.style.marginBottom = '8px';
+                div.innerHTML = `
+                    <div>
+                        <strong>${it.title}</strong> <small style="color:var(--color-text-light)">(${it.type} • ${it.year})</small>
+                        <div style="color:var(--color-text-light)">${it.authorEmail}</div>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button data-id="${it.id}" class="editBtn" style="padding:6px 8px;">Edit</button>
+                        <button data-id="${it.id}" class="delBtn" style="padding:6px 8px; background:#f8d7da; border:none;">Hapus</button>
+                    </div>`;
+                container.appendChild(div);
+            });
+
+            // hookup buttons
+            container.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', (e)=>{
+                const id = e.currentTarget.dataset.id;
+                if (!confirm('Hapus item ini?')) return;
+                const arr = loadCollections().filter(x=>String(x.id)!==String(id));
+                saveCollections(arr);
+                renderCollections(); renderStats();
+            }));
+            container.querySelectorAll('.editBtn').forEach(b => b.addEventListener('click', (e)=>{
+                const id = e.currentTarget.dataset.id;
+                const arr = loadCollections();
+                const it = arr.find(x=>String(x.id)===String(id));
+                if (!it) return;
+                document.getElementById('itemId').value = it.id;
+                document.getElementById('itemTitle').value = it.title;
+                document.getElementById('itemType').value = it.type;
+                document.getElementById('itemAuthor').value = it.authorEmail;
+                document.getElementById('itemYear').value = it.year;
+                document.getElementById('formTitle').textContent = 'Edit Koleksi';
+            }));
+        }
+
+        // render users
+        function renderUsers(){
+            const users = loadUsers();
+            const container = document.getElementById('usersList');
+            container.innerHTML = '';
+            users.forEach(u => {
+                const div = document.createElement('div');
+                div.className = 'report-card';
+                div.style.display = 'flex';
+                div.style.justifyContent = 'space-between';
+                div.style.alignItems = 'center';
+                div.style.marginBottom = '8px';
+                div.innerHTML = `<div><strong>${escapeHtml(u.name||u.email)}</strong><div style="color:var(--color-text-light)">${escapeHtml(u.email)}</div></div>
+                    <div style="display:flex; gap:8px;">
+                        <button data-email="${escapeHtml(u.email)}" class="warnUserBtn" style="padding:6px 8px; background:#fff; border:1px solid #f0ad4e; color:#f0ad4e;">Peringatkan</button>
+                        <button data-email="${escapeHtml(u.email)}" class="delUserBtn" style="padding:6px 8px; background:#f8d7da; border:none;">Hapus</button>
+                    </div>`;
+                container.appendChild(div);
+            });
+            container.querySelectorAll('.delUserBtn').forEach(b => b.addEventListener('click', (e)=>{
+                const email = e.currentTarget.dataset.email;
+                if (!confirm('Hapus user ini?')) return;
+                const arr = loadUsers().filter(u=>u.email!==email);
+                saveUsers(arr);
+                renderUsers();
+            }));
+            // hookup warn buttons
+            container.querySelectorAll('.warnUserBtn').forEach(b => b.addEventListener('click', (e)=>{
+                const email = e.currentTarget.dataset.email;
+                if (!email) return alert('Email tidak ditemukan');
+                // open warn modal (defined in module scope)
+                // use global function if available
+                if (typeof openWarnModal === 'function') return openWarnModal(email);
+                // fallback: dispatch a custom event to open modal
+                const ev = new CustomEvent('admin:openWarnModal', { detail: { email } });
+                window.dispatchEvent(ev);
+            }));
+        }
+
+        // --- fitur peringatan: render, buka modal, simpan, hapus ----
+        function renderWarnings(){
+            const list = loadWarnings();
+            const container = document.getElementById('warningsList');
+            if (!container) return;
+            if (!list || list.length === 0) { container.innerHTML = '<p>Tidak ada peringatan.</p>'; return; }
+            container.innerHTML = '';
+            list.slice().reverse().forEach(w => {
+                const d = document.createElement('div');
+                d.className = 'report-card';
+                d.style.marginBottom = '8px';
+                d.innerHTML = `<div>
+                    <strong>${escapeHtml(w.email)}</strong>
+                    <div style="color:var(--color-text-light)">${new Date(w.createdAt).toLocaleString()}</div>
+                    <div style="margin-top:6px;">${escapeHtml(w.message)}</div>
+                    <div style="color:var(--color-text-light); margin-top:6px;">Dikirim oleh: ${escapeHtml(w.byAdminEmail || 'system')}</div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button data-id="${w.id}" class="delWarnBtn" style="padding:6px 8px; background:#f8d7da; border:none;">Hapus</button>
+                </div>`;
+                container.appendChild(d);
+            });
+            container.querySelectorAll('.delWarnBtn').forEach(b => b.addEventListener('click', e=>{
+                const id = e.currentTarget.dataset.id;
+                if (!confirm('Hapus peringatan ini?')) return;
+                const arr = loadWarnings().filter(x => String(x.id) !== String(id));
+                saveWarnings(arr);
+                renderWarnings();
+            }));
+        }
+
+        // buka modal peringatan untuk email tertentu
+        function openWarnModal(email){
+            const modal = document.getElementById('warnUserModal');
+            if (!modal) return;
+            // support special target '__all__' to mean "Semua Pengguna"
+            modal.__targetEmail = email;
+            const targetLabel = (email === '__all__') ? 'Semua Pengguna' : email;
+            document.getElementById('warnTargetEmail').textContent = targetLabel;
+            document.getElementById('warnMessage').value = '';
+            document.getElementById('warnFeedback').textContent = '';
+            modal.style.display = 'flex';
+            document.getElementById('warnMessage').focus();
+        }
+        // expose global helper so renderUsers can call it
+        window.openWarnModal = openWarnModal;
+        // support custom event fallback
+        window.addEventListener('admin:openWarnModal', ev => { if (ev && ev.detail && ev.detail.email) openWarnModal(ev.detail.email); });
+
+        // hookup modal buttons
+        (function(){
+            const saveBtn = document.getElementById('saveWarnBtn');
+            const closeBtn = document.getElementById('closeWarnBtn');
+            const modal = document.getElementById('warnUserModal');
+            const msgEl = document.getElementById('warnMessage');
+            const feedback = document.getElementById('warnFeedback');
+            if (!saveBtn || !closeBtn || !modal || !msgEl) return;
+
+            // button to open "warn all" modal from header
+            const btnWarnAll = document.getElementById('btnWarnAll');
+            if (btnWarnAll) btnWarnAll.addEventListener('click', ()=> openWarnModal('__all__'));
+
+            closeBtn.addEventListener('click', ()=> { modal.style.display = 'none'; });
+
+            saveBtn.addEventListener('click', ()=> {
+                const target = modal.__targetEmail || (document.getElementById('warnTargetEmail') || {}).textContent;
+                const msg = String(msgEl.value || '').trim();
+                if (!target) { feedback.style.color='red'; feedback.textContent='Target tidak ditemukan.'; return; }
+                if (!msg) { feedback.style.color='red'; feedback.textContent='Pesan tidak boleh kosong.'; return; }
+                const s = (typeof getSession === 'function') ? getSession() : JSON.parse(localStorage.getItem('perpusri_session') || 'null');
+                const arr = loadWarnings();
+                if (target === '__all__') {
+                    const users = loadUsers();
+                    if (!users || users.length === 0) { feedback.style.color='red'; feedback.textContent='Tidak ada user untuk dikirimi peringatan.'; return; }
+                    users.forEach(u => {
+                        arr.push({ id: Date.now() + Math.random(), email: u.email, message: msg, createdAt: Date.now(), byAdminEmail: s && s.email ? s.email : null });
+                    });
+                } else {
+                    arr.push({ id: Date.now(), email: target, message: msg, createdAt: Date.now(), byAdminEmail: s && s.email ? s.email : null });
+                }
+                saveWarnings(arr);
+                feedback.style.color='green'; feedback.textContent='Peringatan dikirim.';
+                setTimeout(()=> { modal.style.display='none'; renderWarnings(); }, 600);
+            });
+        })();
+        // --- end peringatan feature ---
+
+        // save new / update item
+        document.getElementById('saveItemBtn').addEventListener('click', ()=>{
+            const id = document.getElementById('itemId').value;
+            const title = document.getElementById('itemTitle').value.trim();
+            const type = document.getElementById('itemType').value;
+            const authorEmail = document.getElementById('itemAuthor').value.trim();
+            const year = parseInt(document.getElementById('itemYear').value,10) || new Date().getFullYear();
+
+            if (!title || !authorEmail) { alert('Judul dan penulis wajib diisi'); return; }
+
+            const arr = loadCollections();
+            if (id) {
+                // update
+                const idx = arr.findIndex(x => String(x.id) === String(id));
+                if (idx < 0) return alert('Item tidak ditemukan');
+                arr[idx] = Object.assign({}, arr[idx], { title, type, authorEmail, year });
+            } else {
+                // insert new
+                const newItem = { id: Date.now(), title, type, authorEmail, year };
+                arr.push(newItem);
+            }
+            saveCollections(arr);
+            renderCollections(); renderStats();
+            alert('Data koleksi disimpan');
+        });
+
+        // initial render
+        renderStats(); renderCollections(); renderUsers(); renderWarnings();
+    </script>
+</body>
+</html>

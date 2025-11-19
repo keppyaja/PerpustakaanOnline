@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Perpusri — Disertasi</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="auth.js"></script>
+</head>
+<body>
+    <script>
+        // verifikasi: jika belum login arahkan ke login.html (sama seperti forum.html)
+        try {
+            const _sess = (typeof getSession === 'function') ? getSession() : JSON.parse(localStorage.getItem('perpusri_session') || 'null');
+            if (!(_sess && _sess.email)) {
+                window.location.replace('login.html');
+            }
+        } catch(e) {
+            window.location.replace('login.html');
+        }
+    </script>
+    <div class="user-view">
+        <header class="navbar" style="position:sticky;top:0;left:0;right:0;z-index:999;padding:12px 18px;background:var(--color-surface,#fff);box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;align-items:center;gap:16px;">
+            <div class="logo" style="font-weight:700;">Perpusri</div>
+            <nav style="display:flex;gap:12px;align-items:center;flex:1;">
+                <a href="index.html">Home</a>
+                <a href="buku.html">Buku</a>
+                <a href="jurnal.html">Jurnal</a>
+                <a href="skripsi.html">Skripsi</a>
+                <a href="tesis.html">Tesis</a>
+                <a href="disertasi.html" class="active">Disertasi</a>
+                <a href="forum.html">Forum</a>
+                <a href="profil.html">Profil</a>
+            </nav>
+            <div class="profile-icon" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;">D</div>
+        </header>
+
+        <main>
+            <section class="section-content">
+                <h2>Koleksi: Disertasi</h2>
+                <p style="color:var(--color-text-light); margin-bottom:12px;">Disertasi penelitian tingkat lanjut.</p>
+                <div class="card-container">
+                    <div class="document-card">
+                        <div class="card-image-placeholder"><i class="fas fa-file-invoice"></i></div>
+                        <div class="card-content">
+                            <span class="doc-type">Disertasi</span>
+                            <h3>Inovasi Energi Terbarukan</h3>
+                            <p>Dr. E • 2020</p>
+                            <button class="read-button">Lihat Abstrak</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

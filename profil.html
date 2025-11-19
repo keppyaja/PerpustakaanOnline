@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Perpusri — Profil User</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="auth.js"></script>
+    <script>
+        // pastikan terautentikasi
+        const sess = (typeof getSession === 'function') ? getSession() : null;
+        if (!sess) window.location.replace('login.html');
+        if (sess && sess.isAdmin) {
+            // jika admin membuka profil user, arahkan ke admin dashboard
+            window.location.replace('admin.html');
+        }
+    </script>
+    <style>
+        /* Small UI improvements local to profil.html */
+        .profile-header { display:flex; gap:16px; align-items:center; margin-bottom:18px; }
+        .profile-avatar { width:72px; height:72px; border-radius:50%; background:#2d8cff; color:#fff; display:flex; align-items:center; justify-content:center; font-size:28px; }
+        .profile-actions { margin-left:auto; display:flex; gap:8px; }
+        .input-row { display:flex; gap:8px; flex-wrap:wrap; }
+        .small-note { color:var(--color-text-light); font-size:0.9em; }
+        .form-inline { display:flex; gap:8px; align-items:center; margin-top:8px; }
+    </style>
+</head>
+<body>
+    <div class="user-view">
+        <header class="navbar" style="position:sticky;top:0;left:0;right:0;z-index:999;padding:12px 18px;background:var(--color-surface,#fff);box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;align-items:center;gap:16px;">
+            <div class="logo" style="font-weight:700;">Perpusri</div>
+            <nav style="display:flex;gap:12px;align-items:center;flex:1;">
+                <a href="index.html">Home</a>
+                <a href="buku.html">Buku</a>
+                <a href="jurnal.html">Jurnal</a>
+                <a href="skripsi.html">Skripsi</a>
+                <a href="tesis.html">Tesis</a>
+                <a href="disertasi.html">Disertasi</a>
+                <a href="forum.html">Forum</a>
+                <a href="profil.html" class="active">Profil</a>
+            </nav>
+            <div class="profile-icon" id="profileIcon" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+                <img id="profileAvatar" src="" alt="avatar" style="width:36px;height:36px;border-radius:50%;object-fit:cover;display:none;">
+                <div id="profileInitial" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ddd;font-weight:700;color:#333;">D</div>
+            </div>
+        </header>
+
+        <main style="padding:20px;">
+            <div class="profile-header">
+                <div class="profile-avatar" id="userAvatar">D</div>
+                <div>
+                    <h1 id="profileName">Nama Pengguna</h1>
+                    <p id="userEmail" style="color:var(--color-text-light)"></p>
+                    <div class="small-note" id="memberSince">Member sejak: -</div>
+                </div>
+
+                <div class="profile-actions">
+                    <button id="btnEditProfile" class="read-button"><i class="fas fa-edit"></i> Ubah Profil</button>
+                    <button id="btnLogout" style="background:#eee; border:none; padding:8px 10px; border-radius:6px;"><i class="fas fa-sign-out-alt"></i> Keluar</button>
+                </div>
+            </div>
+
+            <section style="margin-top:8px;">
+                <h2>Panel Publikasi</h2>
+                <div style="display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+                    <div class="card" style="padding:12px; min-width:140px; text-align:center;">
+                        <div style="color:var(--color-text-light)">Jurnal</div>
+                        <div id="countJurnal" class="number">0</div>
+                    </div>
+                    <div class="card" style="padding:12px; min-width:140px; text-align:center;">
+                        <div style="color:var(--color-text-light)">Buku</div>
+                        <div id="countBuku" class="number">0</div>
+                    </div>
+                    <div class="card" style="padding:12px; min-width:140px; text-align:center;">
+                        <div style="color:var(--color-text-light)">Artikel</div>
+                        <div id="countArtikel" class="number">0</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3>Daftar Publikasi Saya</h3>
+                        <div class="form-inline">
+                            <input id="filterTitle" placeholder="Filter judul..." style="padding:6px; border-radius:6px; border:1px solid #ddd;">
+                            <button id="btnRefreshPubs" style="padding:6px 10px;">Refresh</button>
+                        </div>
+                    </div>
+                    <div id="myPublications"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal Ubah Profil (ditambah input foto & preview) -->
+    <div id="editProfileModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); align-items:center; justify-content:center;">
+        <div class="card" style="width:420px;">
+            <h3>Ubah Profil</h3>
+
+            <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px;">
+                <div style="width:72px; height:72px; border-radius:8px; overflow:hidden; background:#f1f1f1; display:flex; align-items:center; justify-content:center;">
+                    <img id="editAvatarPreview" src="" alt="preview" style="width:100%; height:100%; object-fit:cover; display:none;">
+                    <div id="editAvatarFallback" style="font-weight:700; color:#666; font-size:18px;">-</div>
+                </div>
+                <div style="flex:1;">
+                    <label>Unggah Foto Profil</label>
+                    <input id="editAvatarFile" type="file" accept="image/*" style="width:100%; margin-top:6px;">
+                    <div class="small-note">Ukuran maksimal 2MB. Hanya untuk demo disimpan di localStorage.</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:8px;">
+                <label>Nama lengkap</label>
+                <input id="editName" style="width:100%; padding:8px; margin-top:6px;">
+            </div>
+            <div style="margin-bottom:8px;">
+                <label>Email</label>
+                <input id="editEmail" style="width:100%; padding:8px; margin-top:6px;">
+                <div class="small-note">Mengubah email akan memperbarui akun Anda. Pastikan email unik.</div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+                <button id="saveProfileBtn" class="read-button" style="flex:1;">Simpan</button>
+                <button id="closeProfileEditBtn" style="flex:1; background:#eee; border:none; padding:8px; border-radius:6px;">Batal</button>
+            </div>
+            <div id="editProfileFeedback" style="margin-top:8px;"></div>
+        </div>
+    </div>
+
+    <script>
+        const KEY_USERS = 'perpusri_users';
+        const KEY_COLL = 'perpusri_collections';
+        const KEY_WARN = 'perpusri_warnings';
+        function loadUsers(){ return JSON.parse(localStorage.getItem(KEY_USERS) || '[]'); }
+        function saveUsers(u){ localStorage.setItem(KEY_USERS, JSON.stringify(u)); }
+        function loadCollections(){ return JSON.parse(localStorage.getItem(KEY_COLL) || '[]'); }
+        function saveCollections(c){ localStorage.setItem(KEY_COLL, JSON.stringify(c)); }
+        function loadWarnings(){ return JSON.parse(localStorage.getItem(KEY_WARN) || '[]'); }
+        function saveWarnings(w){ localStorage.setItem(KEY_WARN, JSON.stringify(w)); }
+
+        // ensure demo users (keberadaan avatarBase64 tidak wajib)
+        if (!localStorage.getItem(KEY_USERS)) {
+            saveUsers([
+                { email: 'user1@contoh.com', name: 'User Satu' },
+                { email: 'user2@contoh.com', name: 'User Dua' },
+                { email: 'admin@perpusri.test', name: 'Administrator' }
+            ]);
+        }
+
+        // helper: convert image file -> base64 (data without prefix)
+        function fileToBase64Image(file){
+            return new Promise((resolve,reject)=>{
+                const r = new FileReader();
+                r.onload = ()=> {
+                    const res = String(r.result || '');
+                    // r.result like "data:image/png;base64,AAAA..."
+                    const idx = res.indexOf('base64,');
+                    if (idx >= 0) resolve(res.slice(idx + 7));
+                    else resolve(res);
+                };
+                r.onerror = ()=> reject(new Error('Gagal baca file gambar'));
+                r.readAsDataURL(file);
+            });
+        }
+
+        // updated setProfileHeader -> support avatar image (base64) or fallback initial
+        function setProfileHeader(session) {
+            if (!session) return;
+            const headerInitial = document.getElementById('userInitialHeader');
+            const avatarEl = document.getElementById('userAvatar');
+            const initial = (session.name && session.name[0]) || (session.email && session.email[0]) || 'U';
+            // header icon (small)
+            if (headerInitial) {
+                if (session.avatarBase64) {
+                    headerInitial.innerHTML = `<img src="data:image/*;base64,${session.avatarBase64}" alt="avatar" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">`;
+                } else {
+                    headerInitial.textContent = initial.toUpperCase();
+                }
+            }
+            // main avatar
+            if (avatarEl) {
+                if (session.avatarBase64) {
+                    avatarEl.innerHTML = `<img src="data:image/*;base64,${session.avatarBase64}" alt="avatar" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                } else {
+                    avatarEl.textContent = initial.toUpperCase();
+                }
+            }
+            const nameEl = document.getElementById('profileName');
+            if (nameEl) nameEl.textContent = session.name || session.email;
+            const emailEl = document.getElementById('userEmail');
+            if (emailEl) emailEl.textContent = session.email;
+            const memberEl = document.getElementById('memberSince');
+            if (memberEl && session.createdAt) memberEl.textContent = 'Member sejak: ' + new Date(session.createdAt).toLocaleDateString();
+        }
+
+        // render publikasi milik user (unchanged)
+        function renderProfileCountsAndList(filterTitle) {
+            const session = (typeof getSession === 'function') ? getSession() : null;
+            if (!session) return;
+            const cols = loadCollections();
+            const mine = cols.filter(c => String(c.authorEmail||'').toLowerCase() === String(session.email||'').toLowerCase());
+            // counts
+            const counts = mine.reduce((acc, it) => {
+                const t = (it.type || '').toLowerCase();
+                acc[t] = (acc[t]||0)+1;
+                return acc;
+            }, {});
+            document.getElementById('countJurnal').textContent = counts['jurnal'] || 0;
+            document.getElementById('countBuku').textContent = counts['buku'] || 0;
+            document.getElementById('countArtikel').textContent = counts['artikel'] || 0;
+
+            // list
+            const container = document.getElementById('myPublications');
+            container.innerHTML = '';
+            const list = mine.slice().reverse().filter(it => {
+                if (!filterTitle) return true;
+                return String(it.title||'').toLowerCase().includes(String(filterTitle).toLowerCase());
+            });
+            if (list.length === 0) { container.innerHTML = '<p>Tidak ada publikasi.</p>'; return; }
+            list.forEach(it => {
+                const d = document.createElement('div');
+                d.className = 'report-card';
+                d.style.marginBottom = '8px';
+                d.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <strong>${escapeHtml(it.title)}</strong>
+                        <div style="color:var(--color-text-light)">${it.type} • ${it.year || ''}</div>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        ${it.fileBase64 ? `<a href="data:${it.fileMime};base64,${it.fileBase64}" download="${escapeHtml(it.fileName)}" style="padding:8px; background:#e6f7ff; text-decoration:none; border-radius:6px;">Unduh</a>` : ''}
+                        <button data-id="${it.id}" class="btnDeletePub" style="padding:6px 10px; background:#f8d7da; border:none;">Hapus</button>
+                    </div>
+                </div>`;
+                container.appendChild(d);
+            });
+
+            container.querySelectorAll('.btnDeletePub').forEach(b => b.addEventListener('click', e=>{
+                const id = e.currentTarget.dataset.id;
+                if (!confirm('Hapus publikasi ini?')) return;
+                const arr = loadCollections().filter(x => String(x.id) !== String(id));
+                saveCollections(arr);
+                renderProfileCountsAndList(document.getElementById('filterTitle').value);
+                // broadcast storage change for other tabs
+                try { localStorage.setItem(KEY_COLL, JSON.stringify(arr)); } catch(e){}
+            }));
+        }
+
+        // minimal escape helper (existing)
+        function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        // Edit profile modal logic (enhanced with avatar handling)
+        const editModal = document.getElementById('editProfileModal');
+        const editName = document.getElementById('editName');
+        const editEmail = document.getElementById('editEmail');
+        const editFeedback = document.getElementById('editProfileFeedback');
+        const saveBtn = document.getElementById('saveProfileBtn');
+        const closeEditBtn = document.getElementById('closeProfileEditBtn');
+        const editAvatarFile = document.getElementById('editAvatarFile');
+        const editAvatarPreview = document.getElementById('editAvatarPreview');
+        const editAvatarFallback = document.getElementById('editAvatarFallback');
+        let originalEmail = null;
+        const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2MB
+
+        // NEW: keep a pending avatar while editing so selection shows immediately
+        let pendingAvatarB64 = null;
+        let originalSessionBeforeEdit = null;
+
+        document.getElementById('btnEditProfile').addEventListener('click', ()=>{
+            const session = (typeof getSession === 'function') ? getSession() : null;
+            if (!session) return;
+            originalEmail = session.email;
+            // save snapshot to allow revert if user cancels
+            originalSessionBeforeEdit = JSON.parse(JSON.stringify(session || {}));
+            pendingAvatarB64 = null;
+
+            editName.value = session.name || '';
+            editEmail.value = session.email || '';
+            editFeedback.textContent = '';
+            // populate avatar preview if exists
+            if (session.avatarBase64) {
+                editAvatarPreview.src = `data:image/*;base64,${session.avatarBase64}`;
+                editAvatarPreview.style.display = 'block';
+                editAvatarFallback.style.display = 'none';
+            } else {
+                editAvatarPreview.src = '';
+                editAvatarPreview.style.display = 'none';
+                editAvatarFallback.textContent = (session.name && session.name[0]) ? session.name[0].toUpperCase() : (session.email && session.email[0]) ? session.email[0].toUpperCase() : 'U';
+                editAvatarFallback.style.display = 'flex';
+            }
+            // clear file input
+            if (editAvatarFile) editAvatarFile.value = '';
+            editModal.style.display = 'flex';
+            editName.focus();
+        });
+
+        // preview when file selected + immediately update main profile UI (live)
+        if (editAvatarFile) editAvatarFile.addEventListener('change', async (e)=>{
+            const f = e.target.files && e.target.files[0];
+            if (!f) {
+                pendingAvatarB64 = null;
+                // revert preview to original session snapshot
+                if (originalSessionBeforeEdit && originalSessionBeforeEdit.avatarBase64) {
+                    editAvatarPreview.src = `data:image/*;base64,${originalSessionBeforeEdit.avatarBase64}`;
+                    editAvatarPreview.style.display = 'block';
+                    editAvatarFallback.style.display = 'none';
+                    setProfileHeader(originalSessionBeforeEdit);
+                } else {
+                    editAvatarPreview.src = '';
+                    editAvatarPreview.style.display = 'none';
+                    editAvatarFallback.style.display = 'flex';
+                    setProfileHeader(originalSessionBeforeEdit);
+                }
+                return;
+            }
+            if (f.size > MAX_AVATAR_BYTES) {
+                editFeedback.style.color = 'red';
+                editFeedback.textContent = 'Ukuran foto terlalu besar (maks 2MB).';
+                editAvatarFile.value = '';
+                return;
+            }
+            try {
+                const b64 = await fileToBase64Image(f);
+                pendingAvatarB64 = b64;
+                // update modal preview
+                editAvatarPreview.src = `data:image/*;base64,${b64}`;
+                editAvatarPreview.style.display = 'block';
+                editAvatarFallback.style.display = 'none';
+                editFeedback.textContent = '';
+
+                // IMMEDIATE PERSISTENCE: save avatar to users list and session so it's used until next upload
+                try {
+                    // load current session (prefer getSession if provided)
+                    const currentSession = (typeof getSession === 'function') ? getSession() : JSON.parse(localStorage.getItem('perpusri_session') || 'null');
+                    const users = loadUsers();
+
+                    // determine email to match (current session email)
+                    const userEmail = currentSession && currentSession.email ? String(currentSession.email).toLowerCase() : null;
+                    if (userEmail) {
+                        // update users array (or add if missing)
+                        const ui = users.findIndex(u => String(u.email||'').toLowerCase() === userEmail);
+                        if (ui >= 0) {
+                            users[ui].avatarBase64 = b64;
+                            // keep existing name if present
+                            if (!users[ui].name && currentSession.name) users[ui].name = currentSession.name;
+                        } else {
+                            users.push({ email: userEmail, name: currentSession && currentSession.name ? currentSession.name : userEmail, avatarBase64: b64 });
+                        }
+                        saveUsers(users);
+                    }
+
+                    // update/persist session immediately
+                    if (currentSession) {
+                        const updatedSession = Object.assign({}, currentSession, { avatarBase64: b64 });
+                        if (typeof saveSession === 'function') {
+                            try { saveSession(updatedSession); } catch(e){ localStorage.setItem('perpusri_session', JSON.stringify(updatedSession)); }
+                        } else {
+                            localStorage.setItem('perpusri_session', JSON.stringify(updatedSession));
+                        }
+                        // also update in-memory getSession behaviour if possible by reloading/set header
+                        setProfileHeader(updatedSession);
+                    } else {
+                        // fallback: still update header with temp session object
+                        const tempSession = { avatarBase64: b64, name: editName.value || null, email: null };
+                        setProfileHeader(tempSession);
+                    }
+
+                    // persist users change to notify other tabs
+                    try { localStorage.setItem(KEY_USERS, JSON.stringify(users)); } catch(e){}
+
+                } catch (persistErr) {
+                    // non-fatal: still show preview
+                    console.error('Gagal menyimpan avatar langsung:', persistErr);
+                }
+
+            } catch(err){
+                editFeedback.style.color = 'red';
+                editFeedback.textContent = 'Gagal memuat preview gambar.';
+            }
+        });
+
+        // if user cancels editing, revert the live-change
+        closeEditBtn.addEventListener('click', ()=> {
+            // revert displayed avatar to original snapshot
+            if (originalSessionBeforeEdit) {
+                setProfileHeader(originalSessionBeforeEdit);
+            } else {
+                const session = (typeof getSession === 'function') ? getSession() : JSON.parse(localStorage.getItem('perpusri_session') || 'null');
+                setProfileHeader(session);
+            }
+            // clear pending and modal inputs
+            pendingAvatarB64 = null;
+            if (editAvatarFile) editAvatarFile.value = '';
+            editModal.style.display = 'none';
+        });
+
+        saveBtn.addEventListener('click', async ()=>{ 
+            const name = String(editName.value||'').trim();
+            const email = String(editEmail.value||'').trim().toLowerCase();
+            if (!name) { editFeedback.style.color='red'; editFeedback.textContent='Nama tidak boleh kosong.'; return; }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { editFeedback.style.color='red'; editFeedback.textContent='Format email tidak valid.'; return; }
+
+            const users = loadUsers();
+            // if email changed, ensure uniqueness
+            if (email !== originalEmail) {
+                if (users.some(u => String(u.email||'').toLowerCase() === email)) {
+                    editFeedback.style.color='red'; editFeedback.textContent='Email sudah dipakai oleh akun lain.'; return;
+                }
+            }
+
+            // if user didn't select file in modal but pendingAvatarB64 may be set already by selection; prefer pendingAvatarB64
+            let avatarB64 = pendingAvatarB64;
+            const f = editAvatarFile && editAvatarFile.files && editAvatarFile.files[0];
+            if (!avatarB64 && f) {
+                if (f.size > MAX_AVATAR_BYTES) {
+                    editFeedback.style.color='red';
+                    editFeedback.textContent='Ukuran foto terlalu besar (maks 2MB).';
+                    return;
+                }
+                try { avatarB64 = await fileToBase64Image(f); } catch(e){ editFeedback.style.color='red'; editFeedback.textContent='Gagal membaca file gambar.'; return; }
+            }
+
+            // update users list (match by originalEmail)
+            const idx = users.findIndex(u => String(u.email||'').toLowerCase() === String(originalEmail).toLowerCase());
+            if (idx >= 0) {
+                users[idx].name = name;
+                users[idx].email = email;
+                if (avatarB64) users[idx].avatarBase64 = avatarB64;
+            } else {
+                const newUser = { email, name };
+                if (avatarB64) newUser.avatarBase64 = avatarB64;
+                users.push(newUser);
+            }
+            // persist users
+            saveUsers(users);
+
+            // update any collections authored by originalEmail to new email
+            if (originalEmail && originalEmail !== email) {
+                const cols = loadCollections();
+                let changed = false;
+                cols.forEach(c => {
+                    if (String(c.authorEmail||'').toLowerCase() === String(originalEmail).toLowerCase()) { c.authorEmail = email; changed = true; }
+                });
+                if (changed) saveCollections(cols);
+            }
+
+            // update session — try saveSession if available, else update localStorage key
+            const currentSession = (typeof getSession === 'function') ? getSession() : JSON.parse(localStorage.getItem('perpusri_session') || 'null');
+            let updatedSession = currentSession ? Object.assign({}, currentSession, { name, email }) : { name, email };
+            if (avatarB64) updatedSession.avatarBase64 = avatarB64;
+            // persist session
+            if (typeof saveSession === 'function') {
+                try { saveSession(updatedSession); } catch(e){ localStorage.setItem('perpusri_session', JSON.stringify(updatedSession)); }
+            } else {
+                localStorage.setItem('perpusri_session', JSON.stringify(updatedSession));
+            }
+
+            // update UI and notify other tabs
+            setProfileHeader(updatedSession);
+            try { localStorage.setItem(KEY_USERS, JSON.stringify(loadUsers())); localStorage.setItem(KEY_COLL, JSON.stringify(loadCollections())); } catch(e){}
+
+            // finalize modal state
+            pendingAvatarB64 = null;
+            editFeedback.style.color='green';
+            editFeedback.textContent='Profil diperbarui.';
+            setTimeout(()=> {
+                editModal.style.display = 'none';
+                renderProfileCountsAndList(document.getElementById('filterTitle') ? document.getElementById('filterTitle').value : '');
+            }, 600);
+        });
+
+        // --- Inisialisasi halaman: update counter publikasi berdasarkan unggahan dan pasang listener ---
+        function initProfilePage(){
+            const session = (typeof getSession === 'function') ? getSession() : JSON.parse(localStorage.getItem('perpusri_session') || 'null');
+            // tampilkan header/profile sekarang
+            setProfileHeader(session);
+            // render publikasi & counts saat load
+            renderProfileCountsAndList(document.getElementById('filterTitle') ? document.getElementById('filterTitle').value : '');
+
+            // tombol refresh manual
+            const btnRefresh = document.getElementById('btnRefreshPubs');
+            if (btnRefresh) btnRefresh.addEventListener('click', ()=> renderProfileCountsAndList(document.getElementById('filterTitle') ? document.getElementById('filterTitle').value : ''));
+
+            // filter realtime saat mengetik
+            const filterInput = document.getElementById('filterTitle');
+            if (filterInput) filterInput.addEventListener('input', ()=> renderProfileCountsAndList(filterInput.value));
+
+            // logout simple (bersihkan session dan kembali ke login)
+            const btnLogout = document.getElementById('btnLogout');
+            if (btnLogout) btnLogout.addEventListener('click', ()=> {
+                try { localStorage.removeItem('perpusri_session'); } catch(e){}
+                if (typeof logout === 'function') logout();
+                window.location.href = 'login.html';
+            });
+
+            // dengarkan perubahan localStorage dari tab lain (unggahan / hapus) untuk memperbarui counts
+            window.addEventListener('storage', (ev) => {
+                if (!ev.key) return;
+                if (ev.key === KEY_COLL || ev.key === KEY_USERS || ev.key === 'perpusri_session') {
+                    // update header & publikasi karena koleksi/user/session bisa berubah
+                    const s = (typeof getSession === 'function') ? getSession() : JSON.parse(localStorage.getItem('perpusri_session') || 'null');
+                    setProfileHeader(s);
+                    renderProfileCountsAndList(document.getElementById('filterTitle') ? document.getElementById('filterTitle').value : '');
+                }
+            });
+        }
+
+        // jalankan inisialisasi setelah DOM siap
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initProfilePage);
+        } else {
+            initProfilePage();
+        }
+     </script>
+ </body>
+ </html>
